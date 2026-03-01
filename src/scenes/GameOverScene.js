@@ -1,5 +1,6 @@
 // Сцена Game Over
 import Storage from '../utils/Storage.js';
+import SoundManager from '../utils/SoundManager.js';
 
 class GameOverScene extends Phaser.Scene {
     constructor() {
@@ -19,6 +20,9 @@ class GameOverScene extends Phaser.Scene {
     }
 
     create() {
+        // Инициализируем SoundManager для применения настроек звука
+        SoundManager.init(this);
+
         const { width, height } = this.cameras.main;
 
         // Фоновое изображение
@@ -85,7 +89,7 @@ class GameOverScene extends Phaser.Scene {
                 );
                 star.setScale(0.6);
                 star.setAngle(Phaser.Math.Between(0, 360));
-                
+
                 this.tweens.add({
                     targets: star,
                     angle: star.angle + 360,
@@ -161,10 +165,8 @@ class GameOverScene extends Phaser.Scene {
 
         restartButton.on('pointerdown', restartGame);
 
-        // Эффект при наведении на кнопку со звуком
         restartButton.on('pointerover', () => {
             restartButton.setFillStyle(0x00cc00);
-            // Звук выбора при наведении
             if (!this.sound.get('sfx_select')?.isPlaying) {
                 this.sound.play('sfx_select', { volume: 0.4 });
             }
@@ -174,10 +176,52 @@ class GameOverScene extends Phaser.Scene {
             restartButton.setFillStyle(0x00ff00);
         });
 
+        // Кнопка "В меню"
+        const menuButton = this.add.rectangle(
+            width / 2,
+            540,
+            240,
+            60,
+            0x6b7280
+        );
+        menuButton.setInteractive({ useHandCursor: true });
+
+        // Текст на кнопке
+        const menuButtonText = this.add.text(
+            width / 2,
+            540,
+            'В меню',
+            {
+                fontSize: '28px',
+                fontFamily: 'Arial',
+                color: '#ffffff',
+                fontStyle: 'bold'
+            }
+        );
+        menuButtonText.setOrigin(0.5);
+        menuButtonText.setShadow(2, 2, 'rgba(0,0,0,0.3)', 2);
+
+        // Обработка нажатия на кнопку "В меню"
+        menuButton.on('pointerdown', () => {
+            this.sound.play('sfx_select', { volume: 0.4 });
+            this.scene.start('MenuScene');
+        });
+
+        menuButton.on('pointerover', () => {
+            menuButton.setFillStyle(0x4b5563);
+            if (!this.sound.get('sfx_select')?.isPlaying) {
+                this.sound.play('sfx_select', { volume: 0.4 });
+            }
+        });
+
+        menuButton.on('pointerout', () => {
+            menuButton.setFillStyle(0x6b7280);
+        });
+
         // Добавляем инструкцию внизу экрана
         const instructionText = this.add.text(
             width / 2,
-            560,
+            590,
             'Нажмите ПРОБЕЛ или кликните для перезапуска',
             {
                 fontSize: '14px',
@@ -195,9 +239,12 @@ class GameOverScene extends Phaser.Scene {
             restartGame();
         });
 
-        // Обработка клика по экрану для перезапуска (кроме кнопки — она обрабатывается отдельно)
+        // Обработка клика по экрану для перезапуска (кроме кнопок)
         this.input.on('pointerdown', (pointer) => {
-            if (!restartButton.getBounds().contains(pointer.x, pointer.y)) {
+            const clickedOnRestart = restartButton.getBounds().contains(pointer.x, pointer.y);
+            const clickedOnMenu = menuButton.getBounds().contains(pointer.x, pointer.y);
+            
+            if (!clickedOnRestart && !clickedOnMenu) {
                 this.sound.play('sfx_select', { volume: 0.4 });
                 restartGame();
             }

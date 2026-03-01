@@ -1,4 +1,6 @@
 // Стартовый экран (меню) Doodle Jump
+import SoundManager from '../utils/SoundManager.js';
+
 class MenuScene extends Phaser.Scene {
     constructor() {
         super({ key: 'MenuScene' });
@@ -17,13 +19,15 @@ class MenuScene extends Phaser.Scene {
     }
 
     create() {
+        // Инициализируем SoundManager при старте меню
+        SoundManager.init(this);
+
         const { width, height } = this.cameras.main;
 
         // Фоновое изображение на весь экран
         this.add.tileSprite(width / 2, height / 2, width, height, 'background');
 
-        // Разблокировка звука при первом взаимодействии (для обхода политики автовоспроизведения браузеров)
-        // https://developer.chrome.com/blog/autoplay/#web_audio
+        // Разблокировка звука при первом взаимодействии
         const unlockAudio = () => {
             if (this.sound.locked) {
                 this.sound.unlock();
@@ -61,19 +65,11 @@ class MenuScene extends Phaser.Scene {
             ease: 'Sine.easeInOut'
         });
 
-        // Подзаголовок
-        const subtitleText = this.add.text(width / 2, 260, 'Добро пожаловать!', {
-            fontSize: '20px',
-            fontFamily: 'Arial',
-            color: '#e0e0e0'
-        });
-        subtitleText.setOrigin(0.5);
-
         // Кнопка «Играть»
-        const playButton = this.add.rectangle(width / 2, 380, 220, 60, 0x4ade80);
+        const playButton = this.add.rectangle(width / 2, 360, 220, 60, 0x4ade80);
         playButton.setInteractive({ useHandCursor: true });
 
-        const playButtonText = this.add.text(width / 2, 380, 'Играть', {
+        const playButtonText = this.add.text(width / 2, 360, 'Играть', {
             fontSize: '32px',
             fontFamily: 'Arial',
             color: '#1a1a1a',
@@ -104,6 +100,35 @@ class MenuScene extends Phaser.Scene {
             playButton.setFillStyle(0x4ade80);
         });
 
+        // Кнопка «Настройки»
+        const settingsButton = this.add.rectangle(width / 2, 440, 220, 60, 0x6b7280);
+        settingsButton.setInteractive({ useHandCursor: true });
+
+        const settingsButtonText = this.add.text(width / 2, 440, 'Настройки', {
+            fontSize: '28px',
+            fontFamily: 'Arial',
+            color: '#ffffff',
+            fontStyle: 'bold'
+        });
+        settingsButtonText.setOrigin(0.5);
+        settingsButtonText.setShadow(2, 2, 'rgba(0,0,0,0.3)', 2);
+
+        settingsButton.on('pointerdown', () => {
+            this.sound.play('sfx_select', { volume: 0.4 });
+            this.scene.start('SettingsScene');
+        });
+
+        settingsButton.on('pointerover', () => {
+            settingsButton.setFillStyle(0x4b5563);
+            if (!this.sound.get('sfx_select')?.isPlaying) {
+                this.sound.play('sfx_select', { volume: 0.4 });
+            }
+        });
+
+        settingsButton.on('pointerout', () => {
+            settingsButton.setFillStyle(0x6b7280);
+        });
+
         // Запуск по пробелу или Enter
         this.input.keyboard.on('keydown-SPACE', () => {
             this.sound.play('sfx_select', { volume: 0.4 });
@@ -115,7 +140,7 @@ class MenuScene extends Phaser.Scene {
         });
 
         // Подсказка внизу экрана
-        const hintText = this.add.text(width / 2, 540, 'Нажмите ПРОБЕЛ, ENTER или кнопку «Играть»', {
+        const hintText = this.add.text(width / 2, 560, 'Нажмите ПРОБЕЛ, ENTER или кнопку «Играть»', {
             fontSize: '14px',
             fontFamily: 'Arial',
             color: '#999999',

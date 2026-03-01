@@ -1,6 +1,7 @@
 // Основной файл игры Doodle Jump
 import VisualEffects from '../utils/VisualEffects.js';
 import Storage from '../utils/Storage.js';
+import SoundManager from '../utils/SoundManager.js';
 
 class MainScene extends Phaser.Scene {
     constructor() {
@@ -57,6 +58,9 @@ class MainScene extends Phaser.Scene {
     }
 
     create() {
+        // Инициализируем SoundManager для применения настроек звука
+        SoundManager.init(this);
+
         // Инициализация счета (0 в начале игры)
         this.score = 0;
 

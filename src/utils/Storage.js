@@ -6,7 +6,9 @@
 const STORAGE_KEYS = {
     BEST_SCORE: 'doodleJumpBestScore',
     TOTAL_GAMES: 'doodleJumpTotalGames',
-    TOTAL_SCORE: 'doodleJumpTotalScore'
+    TOTAL_SCORE: 'doodleJumpTotalScore',
+    SOUND_MUTED: 'doodleJumpSoundMuted',
+    SOUND_VOLUME: 'doodleJumpSoundVolume'
 };
 
 class Storage {
@@ -137,6 +139,51 @@ class Storage {
         } catch (e) {
             console.warn('Не удалось очистить данные:', e);
             return false;
+        }
+    }
+
+    /**
+     * Сохраняет настройки звука
+     * @param {boolean} muted - Заглушен ли звук
+     * @param {number} volume - Громкость от 0 до 1
+     * @returns {boolean} Успешность сохранения
+     */
+    static saveSoundSettings(muted, volume) {
+        if (!this.isAvailable()) {
+            console.warn('Не удалось сохранить настройки звука: localStorage недоступен');
+            return false;
+        }
+
+        try {
+            localStorage.setItem(STORAGE_KEYS.SOUND_MUTED, muted.toString());
+            localStorage.setItem(STORAGE_KEYS.SOUND_VOLUME, volume.toString());
+            return true;
+        } catch (e) {
+            console.warn('Не удалось сохранить настройки звука:', e);
+            return false;
+        }
+    }
+
+    /**
+     * Загружает настройки звука
+     * @returns {{muted: boolean, volume: number}} Настройки звука
+     */
+    static loadSoundSettings() {
+        if (!this.isAvailable()) {
+            return { muted: false, volume: 1.0 };
+        }
+
+        try {
+            const savedMuted = localStorage.getItem(STORAGE_KEYS.SOUND_MUTED);
+            const savedVolume = localStorage.getItem(STORAGE_KEYS.SOUND_VOLUME);
+            
+            return {
+                muted: savedMuted === 'true',
+                volume: savedVolume ? parseFloat(savedVolume) : 1.0
+            };
+        } catch (e) {
+            console.warn('Не удалось загрузить настройки звука:', e);
+            return { muted: false, volume: 1.0 };
         }
     }
 }

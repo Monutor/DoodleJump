@@ -50,7 +50,6 @@ class MainScene extends Phaser.Scene {
         this.load.audio('sfx_jump', 'assets/assetsImg/Sounds/sfx_jump.ogg');
         this.load.audio('sfx_jump_high', 'assets/assetsImg/Sounds/sfx_jump-high.ogg');
         this.load.audio('sfx_coin', 'assets/assetsImg/Sounds/sfx_coin.ogg');
-        this.load.audio('sfx_gem', 'assets/assetsImg/Sounds/sfx_gem.ogg');
         this.load.audio('sfx_hurt', 'assets/assetsImg/Sounds/sfx_hurt.ogg');
         this.load.audio('sfx_disappear', 'assets/assetsImg/Sounds/sfx_disappear.ogg');
         this.load.audio('sfx_magic', 'assets/assetsImg/Sounds/sfx_magic.ogg');
@@ -97,7 +96,8 @@ class MainScene extends Phaser.Scene {
             MOVING: 'moving',
             SPRING: 'spring',
             BREAKING: 'breaking',
-            FLASHING: 'flashing'
+            FLASHING: 'flashing',
+            BOOST: 'boost'  // Платформа-трамплин для высокого прыжка
         };
 
         // Маппинг типов платформ к текстурам
@@ -106,7 +106,8 @@ class MainScene extends Phaser.Scene {
             [this.PLATFORM_TYPES.MOVING]: 'platform_moving',
             [this.PLATFORM_TYPES.SPRING]: 'platform_spring',
             [this.PLATFORM_TYPES.BREAKING]: 'platform_breaking',
-            [this.PLATFORM_TYPES.FLASHING]: 'platform_flashing'
+            [this.PLATFORM_TYPES.FLASHING]: 'platform_flashing',
+            [this.PLATFORM_TYPES.BOOST]: 'platform_boost'
         };
 
         // Предварительно создаем платформы в пуле (20 штук достаточно)
@@ -190,18 +191,13 @@ class MainScene extends Phaser.Scene {
         // Направление игрока (1 = вправо, -1 = влево)
         this.playerDirection = 1;
 
-        // Реализация двойного прыжка
-        this.jumpsLeft = 2; // Игрок может сделать 2 прыжка
-        this.maxJumps = 2;
-        this.isFirstJumpUsed = false;
-
         // Размещаем игрока ступнями на верхней грани платформы (ноги = низ спрайта)
         const platformTop = startPlatform.y - startPlatform.displayHeight / 2;
         this.player.y = platformTop - this.player.displayHeight / 2;
         this.player.setVelocityY(0);
 
         // Настройка камеры для следования за игроком
-        this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+        // Используем ручное управление камерой в update() для надёжности
         this.cameras.main.setBounds(0, -10000, 400, 20000); // Расширяем границы камеры вверх
         this.physics.world.setBounds(0, -10000, 400, 20000); // Расширяем границы физики вверх
         // Самая «высокая» позиция камеры (минимальный scrollY): камера будет следовать только вверх.
@@ -233,13 +229,16 @@ class MainScene extends Phaser.Scene {
             if (isTopLanding) {
                 player.body.touching.down = true;
 
-
-                // Сбрасываем количество прыжков при приземлении на платформу
-                this.jumpsLeft = this.maxJumps;
-                this.isFirstJumpUsed = false;
-
                 // Различные типы прыжков в зависимости от типа платформы
                 switch(platform.type) {
+                    case this.PLATFORM_TYPES.BOOST:
+                        // Платформа-трамплин - очень высокий прыжок
+                        player.setVelocityY(-900);
+                        // Звук высокого прыжка
+                        this.sound.play('sfx_jump_high', { volume: 0.7 });
+                        // Визуальный эффект
+                        this.showFloatingText(platform.x, platform.y - 30, 'BOOST!', '#ff00ff');
+                        break;
                     case this.PLATFORM_TYPES.SPRING:
                         // Прыжок с пружины - увеличенная сила прыжка
                         player.setVelocityY(-700);
@@ -307,22 +306,11 @@ class MainScene extends Phaser.Scene {
                     this.playerDirection = 1; // Игрок смотрит вправо
                 }
 
-                // Прыжок, если игрок на платформе или еще не использовал двойной прыжок
-                if (this.player.body.touching.down || this.jumpsLeft > 0) {
-                    if (this.player.body.touching.down) {
-                        // Первый прыжок
-                        this.player.setVelocityY(-500);
-                        this.jumpsLeft--;
-                        this.isFirstJumpUsed = true;
-                        // Звук прыжка
-                        this.sound.play('sfx_jump', { volume: 0.5 });
-                    } else if (this.jumpsLeft > 0) {
-                        // Двойной прыжок
-                        this.player.setVelocityY(-500);
-                        this.jumpsLeft--;
-                        // Звук двойного прыжка (более высокий тон)
-                        this.sound.play('sfx_jump_high', { volume: 0.4 });
-                    }
+                // Прыжок только если игрок на платформе
+                if (this.player.body.touching.down) {
+                    this.player.setVelocityY(-500);
+                    // Звук прыжка
+                    this.sound.play('sfx_jump', { volume: 0.5 });
                 }
             });
 
@@ -333,22 +321,11 @@ class MainScene extends Phaser.Scene {
         } else {
             // Для десктопа - только клавиатура
             this.input.on('pointerdown', (pointer) => {
-                // Прыжок при клике, если игрок на платформе или еще не использовал двойной прыжок
-                if (this.player.body.touching.down || this.jumpsLeft > 0) {
-                    if (this.player.body.touching.down) {
-                        // Первый прыжок
-                        this.player.setVelocityY(-500);
-                        this.jumpsLeft--;
-                        this.isFirstJumpUsed = true;
-                        // Звук прыжка
-                        this.sound.play('sfx_jump', { volume: 0.5 });
-                    } else if (this.jumpsLeft > 0) {
-                        // Двойной прыжок
-                        this.player.setVelocityY(-500);
-                        this.jumpsLeft--;
-                        // Звук двойного прыжка (более высокий тон)
-                        this.sound.play('sfx_jump_high', { volume: 0.4 });
-                    }
+                // Прыжок при клике, только если игрок на платформе
+                if (this.player.body.touching.down) {
+                    this.player.setVelocityY(-500);
+                    // Звук прыжка
+                    this.sound.play('sfx_jump', { volume: 0.5 });
                 }
             });
         }
@@ -373,16 +350,6 @@ class MainScene extends Phaser.Scene {
         });
         this.bestScoreText.setScrollFactor(0); // Текст остается на экране при движении камеры
         
-        // Индикатор двойного прыжка
-        this.doubleJumpIndicator = this.add.text(10, 80, `Прыжки: ${this.jumpsLeft}/${this.maxJumps}`, {
-            fontSize: '18px',
-            fontFamily: 'Arial',
-            color: '#00ffff',
-            backgroundColor: '#00000080',
-            padding: { x: 10, y: 5 }
-        });
-        this.doubleJumpIndicator.setScrollFactor(0);
-        
         // Отладочная информация
         // this.debugText = this.add.text(10, 40, 'Платформ: 0', {
         //     fontSize: '16px',
@@ -395,11 +362,21 @@ class MainScene extends Phaser.Scene {
     }
 
     update() {
-        // Камера следует только ВВЕРХ (как в Doodle Jump). При падении игрока камера не опускается —
-        // иначе startFollow тянет scrollY вниз, игрок остаётся на экране и проигрыш не срабатывает.
-        if (this.minScrollY == null) this.minScrollY = this.cameras.main.scrollY;
-        this.minScrollY = Math.min(this.minScrollY, this.cameras.main.scrollY);
-        this.cameras.main.scrollY = Math.min(this.cameras.main.scrollY, this.minScrollY);
+        // Камера следует только ВВЕРХ (как в Doodle Jump). При падении игрока камера не опускается.
+        // Используем ручное управление камерой для надёжности
+        const targetY = this.player.y - this.cameras.main.height / 2;
+        
+        if (this.minScrollY === null) {
+            this.minScrollY = targetY;
+        }
+        
+        // Камера движется только вверх — никогда не опускается вниз
+        if (targetY < this.minScrollY) {
+            this.minScrollY = targetY;
+        }
+        
+        // Устанавливаем позицию камеры вручную
+        this.cameras.main.scrollY = this.minScrollY;
 
         // Анимация фона (параллакс-эффект)
         // Фон движется медленнее, чем камера, создавая глубину
@@ -574,9 +551,6 @@ class MainScene extends Phaser.Scene {
                 meteor.angle += 10; // Вращение по часовой стрелке
             }
         });
-
-        // Обновляем индикатор двойного прыжка
-        this.doubleJumpIndicator.setText(`Прыжки: ${this.jumpsLeft}/${this.maxJumps}`);
 
         // Оптимизация производительности для мобильных устройств
         // Если FPS ниже 30, упрощаем рендеринг
@@ -756,16 +730,18 @@ class MainScene extends Phaser.Scene {
      */
     getRandomPlatformType() {
         const rand = Math.random();
-        if (rand < 0.65) {
-            return this.PLATFORM_TYPES.NORMAL; // 65% обычных платформ
-        } else if (rand < 0.80) {
+        if (rand < 0.45) {
+            return this.PLATFORM_TYPES.NORMAL; // 45% обычных платформ
+        } else if (rand < 0.60) {
             return this.PLATFORM_TYPES.MOVING; // 15% движущихся платформ
-        } else if (rand < 0.90) {
-            return this.PLATFORM_TYPES.SPRING; // 10% пружинных платформ
-        } else if (rand < 0.95) {
-            return this.PLATFORM_TYPES.BREAKING; // 5% разрушаемых платформ
-        } else {
+        } else if (rand < 0.72) {
+            return this.PLATFORM_TYPES.SPRING; // 12% пружинных платформ
+        } else if (rand < 0.80) {
+            return this.PLATFORM_TYPES.BREAKING; // 8% разрушаемых платформ
+        } else if (rand < 0.85) {
             return this.PLATFORM_TYPES.FLASHING; // 5% мигающих платформ
+        } else {
+            return this.PLATFORM_TYPES.BOOST; // 15% платформ-трамплинов
         }
     }
 
@@ -784,6 +760,10 @@ class MainScene extends Phaser.Scene {
         }
 
         switch(type) {
+            case this.PLATFORM_TYPES.BOOST:
+                // Платформа-трамплин - выделяется ярким цветом
+                platform.setScale(1.2, 0.7);
+                break;
             case this.PLATFORM_TYPES.MOVING:
                 // Движущаяся платформа - движется горизонтально
                 platform.speedX = Phaser.Math.Between(-50, 50);
@@ -941,7 +921,7 @@ class MainScene extends Phaser.Scene {
             this.sound.play('sfx_coin', { volume: 0.6 });
         } else {
             // Звук драгоценного камня для остальных бонусов
-            this.sound.play('sfx_gem', { volume: 0.5 });
+            this.sound.play('sfx_coin', { volume: 0.5 });
         }
 
         // Создаем визуальный эффект при сборе бонуса
@@ -1085,7 +1065,7 @@ class MainScene extends Phaser.Scene {
             this.score += 100;
             this.scoreText.setText(`Счет: ${this.score}`);
             // Звук высокого достижения
-            this.sound.play('sfx_gem', { volume: 0.6 });
+            this.sound.play('sfx_coin', { volume: 0.6 });
         }
     }
     

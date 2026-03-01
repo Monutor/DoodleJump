@@ -82,7 +82,7 @@ class MenuScene extends Phaser.Scene {
         const startGame = () => {
             // Звук подтверждения при старте игры
             this.sound.play('sfx_jump', { volume: 0.6 });
-            this.scene.start('MainScene');
+            this.scene.start('LoadingScene');
         };
 
         playButton.on('pointerdown', startGame);

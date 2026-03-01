@@ -10,6 +10,10 @@ class MenuScene extends Phaser.Scene {
 
         // Персонаж для меню
         this.load.image('player_idle', 'assets/assetsImg/Sprites/Characters/Default/character_pink_idle.png');
+
+        // Звуки
+        this.load.audio('sfx_select', 'assets/assetsImg/Sounds/sfx_select.ogg');
+        this.load.audio('sfx_jump', 'assets/assetsImg/Sounds/sfx_jump.ogg');
     }
 
     create() {
@@ -17,6 +21,19 @@ class MenuScene extends Phaser.Scene {
 
         // Фоновое изображение на весь экран
         this.add.tileSprite(width / 2, height / 2, width, height, 'background');
+
+        // Разблокировка звука при первом взаимодействии (для обхода политики автовоспроизведения браузеров)
+        // https://developer.chrome.com/blog/autoplay/#web_audio
+        const unlockAudio = () => {
+            if (this.sound.locked) {
+                this.sound.unlock();
+            }
+            this.input.off('pointerdown', unlockAudio);
+            this.input.keyboard.off('keydown', unlockAudio);
+        };
+
+        this.input.on('pointerdown', unlockAudio);
+        this.input.keyboard.on('keydown', unlockAudio);
 
         // Заголовок игры
         const titleText = this.add.text(width / 2, 120, 'Doodle Jump', {
@@ -66,13 +83,21 @@ class MenuScene extends Phaser.Scene {
         playButtonText.setShadow(2, 2, 'rgba(0,0,0,0.3)', 2);
 
         // Запуск игры по клику по кнопке
-        const startGame = () => this.scene.start('MainScene');
+        const startGame = () => {
+            // Звук подтверждения при старте игры
+            this.sound.play('sfx_jump', { volume: 0.6 });
+            this.scene.start('MainScene');
+        };
 
         playButton.on('pointerdown', startGame);
 
-        // Подсветка кнопки при наведении
+        // Подсветка кнопки при наведении со звуком
         playButton.on('pointerover', () => {
             playButton.setFillStyle(0x22c55e);
+            // Звук выбора при наведении
+            if (!this.sound.get('sfx_select')?.isPlaying) {
+                this.sound.play('sfx_select', { volume: 0.4 });
+            }
         });
 
         playButton.on('pointerout', () => {
@@ -80,8 +105,14 @@ class MenuScene extends Phaser.Scene {
         });
 
         // Запуск по пробелу или Enter
-        this.input.keyboard.on('keydown-SPACE', startGame);
-        this.input.keyboard.on('keydown-ENTER', startGame);
+        this.input.keyboard.on('keydown-SPACE', () => {
+            this.sound.play('sfx_select', { volume: 0.4 });
+            startGame();
+        });
+        this.input.keyboard.on('keydown-ENTER', () => {
+            this.sound.play('sfx_select', { volume: 0.4 });
+            startGame();
+        });
 
         // Подсказка внизу экрана
         const hintText = this.add.text(width / 2, 540, 'Нажмите ПРОБЕЛ, ENTER или кнопку «Играть»', {

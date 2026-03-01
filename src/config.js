@@ -11,6 +11,11 @@ const config = {
         }
     },
     scene: [],
+    // Настройки аудио
+    audio: {
+        disableWebAudio: false, // Не отключаем Web Audio API
+        noAudio: false // Включаем звук по умолчанию
+    },
     // Оптимизация производительности
     fps: {
         target: 60, // Целевой FPS

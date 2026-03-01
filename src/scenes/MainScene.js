@@ -44,6 +44,16 @@ class MainScene extends Phaser.Scene {
         this.load.image('enemy_fly', 'assets/assetsImg/Sprites/Enemies/Default/fly_a.png');
         this.load.image('enemy_saw', 'assets/assetsImg/Sprites/Enemies/Default/saw_a.png');
         this.load.image('enemy_fireball', 'assets/assetsImg/Sprites/Tiles/Default/fireball.png');
+
+        // === ЗВУКИ ===
+        this.load.audio('sfx_jump', 'assets/assetsImg/Sounds/sfx_jump.ogg');
+        this.load.audio('sfx_jump_high', 'assets/assetsImg/Sounds/sfx_jump-high.ogg');
+        this.load.audio('sfx_coin', 'assets/assetsImg/Sounds/sfx_coin.ogg');
+        this.load.audio('sfx_gem', 'assets/assetsImg/Sounds/sfx_gem.ogg');
+        this.load.audio('sfx_hurt', 'assets/assetsImg/Sounds/sfx_hurt.ogg');
+        this.load.audio('sfx_disappear', 'assets/assetsImg/Sounds/sfx_disappear.ogg');
+        this.load.audio('sfx_magic', 'assets/assetsImg/Sounds/sfx_magic.ogg');
+        this.load.audio('sfx_bump', 'assets/assetsImg/Sounds/sfx_bump.ogg');
     }
 
     create() {
@@ -52,6 +62,12 @@ class MainScene extends Phaser.Scene {
 
         // Переменная для отслеживания бонуса за высоту
         this.heightBonusGiven = false;
+        
+        // Флаг для отслеживания бонуса за 100 очков (чтобы не спамить звуком)
+        this.justScored100 = false;
+        
+        // Флаг для предотвращения повторного звука прыжка при зажатой клавише
+        this.jumpKeyWasPressed = false;
 
         // Загрузка лучшего счёта из localStorage
         this.bestScore = Storage.loadBestScore();
@@ -212,24 +228,28 @@ class MainScene extends Phaser.Scene {
             const isTopLanding = this.isLandingOnTop(player, platform);
             if (isTopLanding) {
                 player.body.touching.down = true;
-                
-                
+
+
                 // Сбрасываем количество прыжков при приземлении на платформу
                 this.jumpsLeft = this.maxJumps;
                 this.isFirstJumpUsed = false;
-                
+
                 // Различные типы прыжков в зависимости от типа платформы
                 switch(platform.type) {
                     case this.PLATFORM_TYPES.SPRING:
                         // Прыжок с пружины - увеличенная сила прыжка
                         player.setVelocityY(-700);
+                        // Звук высокого прыжка с пружины
+                        this.sound.play('sfx_jump_high', { volume: 0.5 });
                         break;
                     case this.PLATFORM_TYPES.BREAKING:
                         // Разрушаемая платформа - исчезает после приземления
                         this.time.delayedCall(100, () => {
                             this.removePlatform(platform);
+                            // Звук разрушения платформы
+                            this.sound.play('sfx_disappear', { volume: 0.4 });
                         });
-                        break;
+                        // Fall through to normal platform
                     case this.PLATFORM_TYPES.MOVING:
                         // Двигающаяся платформа - добавляем горизонтальное движение игрока
                         player.setVelocityX(platform.body.velocity.x);
@@ -237,10 +257,14 @@ class MainScene extends Phaser.Scene {
                     case this.PLATFORM_TYPES.FLASHING:
                         // Мигающая платформа - обычный прыжок, но с визуальным эффектом
                         player.setVelocityY(-500);
+                        // Звук прыжка
+                        this.sound.play('sfx_jump', { volume: 0.5 });
                         break;
                     default:
                         // Обычная платформа - стандартный прыжок
                         player.setVelocityY(-500);
+                        // Звук прыжка
+                        this.sound.play('sfx_jump', { volume: 0.5 });
                 }
             }
         }, (player, platform) => {
@@ -286,10 +310,14 @@ class MainScene extends Phaser.Scene {
                         this.player.setVelocityY(-500);
                         this.jumpsLeft--;
                         this.isFirstJumpUsed = true;
+                        // Звук прыжка
+                        this.sound.play('sfx_jump', { volume: 0.5 });
                     } else if (this.jumpsLeft > 0) {
                         // Двойной прыжок
                         this.player.setVelocityY(-500);
                         this.jumpsLeft--;
+                        // Звук двойного прыжка (более высокий тон)
+                        this.sound.play('sfx_jump_high', { volume: 0.4 });
                     }
                 }
             });
@@ -304,14 +332,18 @@ class MainScene extends Phaser.Scene {
                 // Прыжок при клике, если игрок на платформе или еще не использовал двойной прыжок
                 if (this.player.body.touching.down || this.jumpsLeft > 0) {
                     if (this.player.body.touching.down) {
-                        // Первый пржок
+                        // Первый прыжок
                         this.player.setVelocityY(-500);
                         this.jumpsLeft--;
                         this.isFirstJumpUsed = true;
+                        // Звук прыжка
+                        this.sound.play('sfx_jump', { volume: 0.5 });
                     } else if (this.jumpsLeft > 0) {
                         // Двойной прыжок
                         this.player.setVelocityY(-500);
                         this.jumpsLeft--;
+                        // Звук двойного прыжка (более высокий тон)
+                        this.sound.play('sfx_jump_high', { volume: 0.4 });
                     }
                 }
             });
@@ -390,8 +422,16 @@ class MainScene extends Phaser.Scene {
             }
 
             // Прыжок только если игрок касается платформы
-            if (this.cursors.up.isDown && this.player.body.touching.down) {
+            if (this.cursors.up.isDown && this.player.body.touching.down && !this.jumpKeyWasPressed) {
                 this.player.setVelocityY(-500);
+                // Звук прыжка
+                this.sound.play('sfx_jump', { volume: 0.5 });
+                this.jumpKeyWasPressed = true;
+            }
+            
+            // Сбрасываем флаг при отпускании клавиши
+            if (!this.cursors.up.isDown) {
+                this.jumpKeyWasPressed = false;
             }
         }
 
@@ -568,41 +608,49 @@ class MainScene extends Phaser.Scene {
         const anims = this.anims;
 
         // Анимация бездействия (idle) - покачивание
-        anims.create({
-            key: 'player_idle',
-            frames: [
-                { key: 'player_idle' },
-                { key: 'player_front' }
-            ],
-            frameRate: 4,
-            repeat: -1,
-            yoyo: true
-        });
+        if (!anims.exists('player_idle')) {
+            anims.create({
+                key: 'player_idle',
+                frames: [
+                    { key: 'player_idle' },
+                    { key: 'player_front' }
+                ],
+                frameRate: 4,
+                repeat: -1,
+                yoyo: true
+            });
+        }
 
         // Анимация ходьбы/бега
-        anims.create({
-            key: 'player_walk',
-            frames: [
-                { key: 'player_walk_a' },
-                { key: 'player_walk_b' }
-            ],
-            frameRate: 10,
-            repeat: -1
-        });
+        if (!anims.exists('player_walk')) {
+            anims.create({
+                key: 'player_walk',
+                frames: [
+                    { key: 'player_walk_a' },
+                    { key: 'player_walk_b' }
+                ],
+                frameRate: 10,
+                repeat: -1
+            });
+        }
 
         // Анимация прыжка (статичная, но можно добавить кадр)
-        anims.create({
-            key: 'player_jump',
-            frames: [{ key: 'player_jump' }],
-            frameRate: 1
-        });
+        if (!anims.exists('player_jump')) {
+            anims.create({
+                key: 'player_jump',
+                frames: [{ key: 'player_jump' }],
+                frameRate: 1
+            });
+        }
 
         // Анимация падения (hit)
-        anims.create({
-            key: 'player_hit',
-            frames: [{ key: 'player_hit' }],
-            frameRate: 1
-        });
+        if (!anims.exists('player_hit')) {
+            anims.create({
+                key: 'player_hit',
+                frames: [{ key: 'player_hit' }],
+                frameRate: 1
+            });
+        }
     }
 
     /**
@@ -793,6 +841,11 @@ class MainScene extends Phaser.Scene {
      */
     removePlatform(platform) {
         if (platform && platform.active) {
+            // Очищаем таймер мигающей платформы
+            if (platform.flashTimer) {
+                platform.flashTimer.destroy();
+                platform.flashTimer = null;
+            }
             platform.setActive(false);
             platform.setVisible(false);
             // Удаляем платформу из множества отслеживаемых (чтобы избежать утечек памяти)
@@ -813,8 +866,15 @@ class MainScene extends Phaser.Scene {
                     platform.flashTimer = this.time.addEvent({
                         delay: 500, // 0.5 секунды
                         callback: () => {
-                            platform.setVisible(!platform.visible);
-                            platform.setAlpha(platform.visible ? 1 : 0.3);
+                            const isVisible = !platform.visible;
+                            platform.setVisible(isVisible);
+                            platform.setAlpha(isVisible ? 1 : 0.3);
+                            // Отключаем коллизию, когда платформа невидима
+                            platform.body.checkCollision.none = !isVisible;
+                            platform.body.checkCollision.up = isVisible;
+                            platform.body.checkCollision.down = isVisible;
+                            platform.body.checkCollision.left = isVisible;
+                            platform.body.checkCollision.right = isVisible;
                         },
                         loop: true
                     });
@@ -871,6 +931,15 @@ class MainScene extends Phaser.Scene {
      * Обработка сбора бонуса игроком
      */
     collectBonus(player, bonus) {
+        // Воспроизводим звук в зависимости от типа бонуса
+        if (bonus.bonusType === this.BONUS_TYPES.POINTS) {
+            // Звук монеты
+            this.sound.play('sfx_coin', { volume: 0.6 });
+        } else {
+            // Звук драгоценного камня для остальных бонусов
+            this.sound.play('sfx_gem', { volume: 0.5 });
+        }
+
         // Создаем визуальный эффект при сборе бонуса
         VisualEffects.createBonusEffect(this, bonus.x, bonus.y,
             bonus.bonusType === this.BONUS_TYPES.POINTS ? '+50' :
@@ -879,7 +948,7 @@ class MainScene extends Phaser.Scene {
             bonus.bonusType === this.BONUS_TYPES.POINTS ? '#ffff00' :
             bonus.bonusType === this.BONUS_TYPES.SPEED ? '#00ff00' :
             bonus.bonusType === this.BONUS_TYPES.SHIELD ? '#0088ff' : '#ff00ff');
-        
+
         // Применяем эффект бонуса
         switch(bonus.bonusType) {
             case this.BONUS_TYPES.POINTS:
@@ -911,10 +980,10 @@ class MainScene extends Phaser.Scene {
                 });
                 break;
         }
-        
+
         // Обновляем счёт
         this.scoreText.setText(`Счет: ${this.score}`);
-        
+
         // Возвращаем бонус в пул
         bonus.setActive(false);
         bonus.setVisible(false);
@@ -989,13 +1058,21 @@ class MainScene extends Phaser.Scene {
      */
     checkAchievements() {
         // Проверяем, не достиг ли игрок новых рекордов
-        if (this.score > 0 && this.score % 100 === 0) {
+        if (this.score > 0 && this.score % 100 === 0 && !this.justScored100) {
             // Бонус за каждые 100 очков
+            this.justScored100 = true;
             this.showFloatingText(this.player.x, this.player.y - 100, '+50 BONUS!', '#ff6600');
             this.score += 50;
             this.scoreText.setText(`Счет: ${this.score}`);
+            // Звук достижения
+            this.sound.play('sfx_magic', { volume: 0.5 });
         }
-        
+
+        // Сбрасываем флаг justScored100, когда счет становится не кратным 100
+        if (this.score % 100 !== 0) {
+            this.justScored100 = false;
+        }
+
         // Проверяем высоту для специального бонуса
         const heightBonusThreshold = -1000; // При достижении высоты -1000
         if (this.player.y < heightBonusThreshold && !this.heightBonusGiven) {
@@ -1003,6 +1080,8 @@ class MainScene extends Phaser.Scene {
             this.showFloatingText(this.player.x, this.player.y - 150, 'HIGH FLYER +100!', '#00ffff');
             this.score += 100;
             this.scoreText.setText(`Счет: ${this.score}`);
+            // Звук высокого достижения
+            this.sound.play('sfx_gem', { volume: 0.6 });
         }
     }
     
@@ -1014,14 +1093,19 @@ class MainScene extends Phaser.Scene {
         if (player.getData('shield')) {
             // Если у игрока есть щит, создаем визуальный эффект и уничтожаем метеорит
             VisualEffects.createFlashEffect(this, meteor.x, meteor.y, 0x0088ff);
+            // Звук защиты щитом
+            this.sound.play('sfx_magic', { volume: 0.4 });
             meteor.setActive(false);
             meteor.setVisible(false);
             return;
         }
-        
+
+        // Звук получения урона
+        this.sound.play('sfx_hurt', { volume: 0.6 });
+
         // При попадании метеорита игрок падает вниз
         player.setVelocityY(300); // Направляем игрока вниз
-        
+
         // Создаем эффект взрыва
         VisualEffects.createExplosionEffect(this, player.x, player.y);
         
@@ -1038,16 +1122,9 @@ class MainScene extends Phaser.Scene {
         // Очищаем все слушатели событий ввода
         this.input.removeAllListeners();
 
-        // Останавливаем и уничтожаем таймеры мигающих платформ
+        // Проходим по всем платформам и корректно удаляем их
         this.platformPool.children.each((platform) => {
-            if (platform && platform.flashTimer) {
-                platform.flashTimer.destroy();
-                platform.flashTimer = null;
-            }
-            if (platform) {
-                platform.setActive(false);
-                platform.setVisible(false);
-            }
+            this.removePlatform(platform);
         });
 
         // Очищаем пулы объектов
@@ -1057,6 +1134,9 @@ class MainScene extends Phaser.Scene {
 
         // Сбрасываем масштаб времени (если был замедлен бонусом SLOWTIME)
         this.time.timeScale = 1.0;
+
+        // Сбрасываем флаги
+        this.jumpKeyWasPressed = false;
     }
 }
 

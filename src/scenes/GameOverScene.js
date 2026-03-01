@@ -7,10 +7,15 @@ class GameOverScene extends Phaser.Scene {
     }
 
     preload() {
-        // Фон и персонаж для экрана проигрыша
+        // Фон и персонаж для экране проигрыша
         this.load.image('background', 'assets/assetsImg/Sprites/Backgrounds/Default/background_solid_sky.png');
         this.load.image('player_hit', 'assets/assetsImg/Sprites/Characters/Default/character_pink_hit.png');
         this.load.image('star', 'assets/assetsImg/Sprites/Tiles/Default/star.png');
+
+        // Звуки
+        this.load.audio('sfx_hurt', 'assets/assetsImg/Sounds/sfx_hurt.ogg');
+        this.load.audio('sfx_select', 'assets/assetsImg/Sounds/sfx_select.ogg');
+        this.load.audio('sfx_magic', 'assets/assetsImg/Sounds/sfx_magic.ogg');
     }
 
     create() {
@@ -28,6 +33,9 @@ class GameOverScene extends Phaser.Scene {
         if (score > previousBestScore) {
             Storage.saveBestScore(score);
         }
+
+        // Звук при переходе в сцену проигрыша
+        this.sound.play('sfx_hurt', { volume: 0.5 });
 
         // Добавляем персонажа в состоянии падения
         const player = this.add.image(width / 2, 120, 'player_hit');
@@ -145,13 +153,21 @@ class GameOverScene extends Phaser.Scene {
         restartButtonText.setShadow(2, 2, 'rgba(0,0,0,0.3)', 2);
 
         // Обработка нажатия на кнопку
-        restartButton.on('pointerdown', () => {
+        const restartGame = () => {
+            // Звук при рестарте
+            this.sound.play('sfx_magic', { volume: 0.5 });
             this.scene.start('MainScene');
-        });
+        };
 
-        // Эффект при наведении на кнопку
+        restartButton.on('pointerdown', restartGame);
+
+        // Эффект при наведении на кнопку со звуком
         restartButton.on('pointerover', () => {
             restartButton.setFillStyle(0x00cc00);
+            // Звук выбора при наведении
+            if (!this.sound.get('sfx_select')?.isPlaying) {
+                this.sound.play('sfx_select', { volume: 0.4 });
+            }
         });
 
         restartButton.on('pointerout', () => {
@@ -175,13 +191,15 @@ class GameOverScene extends Phaser.Scene {
 
         // Обработка нажатия пробела для перезапуска
         this.input.keyboard.on('keydown-SPACE', () => {
-            this.scene.start('MainScene');
+            this.sound.play('sfx_select', { volume: 0.4 });
+            restartGame();
         });
 
         // Обработка клика по экрану для перезапуска (кроме кнопки — она обрабатывается отдельно)
         this.input.on('pointerdown', (pointer) => {
             if (!restartButton.getBounds().contains(pointer.x, pointer.y)) {
-                this.scene.start('MainScene');
+                this.sound.play('sfx_select', { volume: 0.4 });
+                restartGame();
             }
         });
     }
